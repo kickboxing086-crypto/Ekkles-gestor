@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserAccount } from '../types';
 import { getMasterAccount, saveMasterPassword } from '../data/mockData';
 import { getLocalAccounts, subscribeToAccounts, updateAccountPassword } from '../services/firestoreService';
-import { sendPasswordResetEmail, createUserWithEmailAndPassword } from 'firebase/auth';
+import { sendPasswordResetEmail, createUserWithEmailAndPassword, confirmPasswordReset } from 'firebase/auth';
 import { auth } from '../firebase';
 import {
   Lock,
@@ -45,6 +45,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [isSavingPassword, setIsSavingPassword] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
+  const [urlOobCode, setUrlOobCode] = useState<string | null>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('mode') === 'resetPassword' && params.get('oobCode')) {
+        return params.get('oobCode');
+      }
+    } catch (e) {}
+    return null;
+  });
+
+  useEffect(() => {
+    if (urlOobCode) {
+      setAuthMode('forgot_new');
+    }
+  }, [urlOobCode]);
 
   const [accounts, setAccounts] = useState<UserAccount[]>(() => getLocalAccounts());
 
@@ -231,18 +246,27 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setIsSavingPassword(true);
 
     try {
-      if (matchedAccount.username === 'Samuel_01') {
-        saveMasterPassword(newPassword);
+      if (urlOobCode) {
+        await confirmPasswordReset(auth, urlOobCode, newPassword);
+      } else if (matchedAccount) {
+        if (matchedAccount.username === 'Samuel_01') {
+          saveMasterPassword(newPassword);
+        } else {
+          await updateAccountPassword(matchedAccount.id, newPassword);
+        }
       } else {
-        await updateAccountPassword(matchedAccount.id, newPassword);
+        throw new Error('Sessão de recuperação expirada.');
       }
 
-      setUsername(matchedAccount.username);
       setPassword('');
-      setSuccessNotice(`Senha de ${matchedAccount.name} redefinida com sucesso! Você já pode entrar com sua nova senha.`);
+      setSuccessNotice('Senha redefinida com sucesso! Faça login com sua nova senha.');
       setAuthMode('login');
+      setUrlOobCode(null);
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     } catch (err: any) {
-      setError('Erro ao salvar a nova senha: ' + (err.message || 'Tente novamente.'));
+      setError('Erro ao salvar a nova senha: ' + (err.message || 'O link pode ter expirado.'));
     } finally {
       setIsSavingPassword(false);
     }
@@ -533,15 +557,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         {/* ========================================================================= */}
         {/* MODE 4: FORGOT PASSWORD - STEP 3 (DEFINIR NOVA SENHA) */}
         {/* ========================================================================= */}
-        {authMode === 'forgot_new' && matchedAccount && (
+        {authMode === 'forgot_new' && (
           <form onSubmit={handleSaveNewPassword} className="space-y-4 animate-in fade-in duration-150">
             <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-800">
-              <div className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <div className="w-10 h-10 bg-emerald-950/60 border border-emerald-800/60 rounded-xl flex items-center justify-center text-emerald-400">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-white">Criar Nova Senha</h2>
-                <p className="text-[11px] text-zinc-400">Usuário confirmado: <strong className="text-white">{matchedAccount.username}</strong></p>
+                <h2 className="text-sm font-bold text-white">Recuperar Senha</h2>
+                <p className="text-[11px] text-zinc-400">{matchedAccount ? `Usuário: ${matchedAccount.username}` : 'Redefinição de acesso segura'}</p>
               </div>
             </div>
 
