@@ -155,17 +155,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     }
 
     try {
-      const actionCodeSettings = {
-        url: 'https://ekkles-gestor.vercel.app/',
-        handleCodeInApp: true,
-      };
-
       try {
-        await sendPasswordResetEmail(auth, target.email, actionCodeSettings);
+        await sendPasswordResetEmail(auth, target.email);
       } catch (err: any) {
         if (err?.code === 'auth/user-not-found' || err?.message?.includes('user-not-found')) {
           await createUserWithEmailAndPassword(auth, target.email, 'TempPass123!@#');
-          await sendPasswordResetEmail(auth, target.email, actionCodeSettings);
+          await sendPasswordResetEmail(auth, target.email);
         } else {
           throw err;
         }
@@ -173,9 +168,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
       setSuccessNotice(`Instruções de redefinição enviadas diretamente para o seu e-mail (${target.email}). Verifique sua caixa de entrada.`);
       setAuthMode('login');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao enviar e-mail de recuperação:', err);
-      setError('Erro ao enviar e-mail de recuperação. Tente novamente.');
+      setError(err?.message || 'Erro ao enviar e-mail de recuperação. Tente novamente.');
     } finally {
       setIsSendingCode(false);
     }
@@ -188,16 +183,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setError(null);
 
     try {
-      const actionCodeSettings = {
-        url: 'https://ekkles-gestor.vercel.app/',
-        handleCodeInApp: true,
-      };
-      await sendPasswordResetEmail(auth, matchedAccount.email, actionCodeSettings);
+      await sendPasswordResetEmail(auth, matchedAccount.email);
       setSuccessNotice(`Novo e-mail de redefinição enviado para ${matchedAccount.email}.`);
       setResendCooldown(60);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Falha no reenvio:', err);
-      setError('Erro ao reenviar o e-mail.');
+      setError(err?.message || 'Erro ao reenviar o e-mail.');
     } finally {
       setIsSendingCode(false);
     }
