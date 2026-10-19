@@ -1,18 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserAccount } from '../types';
-import { AVAILABLE_ACCOUNTS } from '../data/mockData';
-import { Lock, User, ArrowRight, CheckCircle2, XCircle, ShieldCheck } from 'lucide-react';
+import { MASTER_ACCOUNT } from '../data/mockData';
+import { getLocalAccounts, subscribeToAccounts } from '../services/firestoreService';
+import { Lock, User, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
 
 interface LoginViewProps {
   onLogin: (account: UserAccount) => void;
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('Samuel_01');
-  const [password, setPassword] = useState('072131Sa@');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<UserAccount[]>(() => getLocalAccounts());
 
-  // Requirements checks:
+  useEffect(() => {
+    const unsub = subscribeToAccounts((loaded) => {
+      if (loaded) setAccounts(loaded);
+    });
+    return () => unsub();
+  }, []);
+
+  // Validation requirements:
   // 1. Min 8 chars
   // 2. Uppercase & Lowercase
   // 3. Special character
@@ -45,43 +54,25 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       return;
     }
 
-    // Master Account for generating client accounts
-    if (username === 'Samuel_01' && password === '072131Sa@') {
-      const masterAccount: UserAccount = {
-        id: 'acc-master-samuel',
-        name: 'Samuel (Administrador Master)',
-        role: 'Gerador de Contas / Admin',
-        accountType: 'pastor',
-        email: 'samuellsilvva02@gmail.com',
-        username: 'Samuel_01',
-        password: '072131Sa@',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-        phone: '(11) 99999-9999',
-        gcId: 'all',
-        gcName: 'Painel de Gestão de Contas',
-      };
-      onLogin(masterAccount);
+    // 1. Master Account for generating & managing client accounts
+    if (username.trim() === 'Samuel_01' && password === '072131Sa@') {
+      onLogin(MASTER_ACCOUNT);
       return;
     }
 
-    const found = AVAILABLE_ACCOUNTS.find(
+    // 2. Leader Accounts created in the system
+    const found = accounts.find(
       (acc) =>
         acc.username.toLowerCase() === username.trim().toLowerCase() &&
         acc.password === password
     );
 
     if (!found) {
-      setError('Credenciais inválidas. Use Samuel_01 / 072131Sa@ ou uma conta válida.');
+      setError('Credenciais incorretas ou conta não cadastrada. Verifique seus dados ou solicite ao Administrador.');
       return;
     }
 
     onLogin(found);
-  };
-
-  const handleQuickLogin = (account: UserAccount) => {
-    setUsername(account.username);
-    setPassword(account.password);
-    onLogin(account);
   };
 
   return (
@@ -98,7 +89,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white">EKKLES</h1>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Portal de Acesso & Gestão de Contas
+              Sistema de Gestão de Células & Grupos Caseiros
             </p>
           </div>
         </div>
@@ -123,25 +114,26 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Ex: Samuel_01"
+                placeholder="Digite seu usuário"
+                autoComplete="username"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors font-mono"
               />
             </div>
             {/* Live Username Checklist */}
             <div className="grid grid-cols-2 gap-1 pt-1.5 pl-1 text-[11px]">
-              <div className={`flex items-center gap-1.5 ${userChecks.minLength ? 'text-emerald-400' : 'text-zinc-500'}`}>
+              <div className={`flex items-center gap-1.5 ${userChecks.minLength ? 'text-emerald-400 font-medium' : 'text-zinc-500'}`}>
                 {userChecks.minLength ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded-full border border-zinc-600 inline-block text-center text-[9px] leading-3">○</span>}
                 <span>Mín. 8 caracteres</span>
               </div>
-              <div className={`flex items-center gap-1.5 ${userChecks.hasUpper && userChecks.hasLower ? 'text-emerald-400' : 'text-zinc-500'}`}>
+              <div className={`flex items-center gap-1.5 ${userChecks.hasUpper && userChecks.hasLower ? 'text-emerald-400 font-medium' : 'text-zinc-500'}`}>
                 {userChecks.hasUpper && userChecks.hasLower ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded-full border border-zinc-600 inline-block text-center text-[9px] leading-3">○</span>}
                 <span>Maiúsculas & minúsculas</span>
               </div>
-              <div className={`flex items-center gap-1.5 ${userChecks.hasSpecial ? 'text-emerald-400' : 'text-zinc-500'}`}>
+              <div className={`flex items-center gap-1.5 ${userChecks.hasSpecial ? 'text-emerald-400 font-medium' : 'text-zinc-500'}`}>
                 {userChecks.hasSpecial ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded-full border border-zinc-600 inline-block text-center text-[9px] leading-3">○</span>}
                 <span>Caractere especial</span>
               </div>
-              <div className={`flex items-center gap-1.5 ${userChecks.noAccents ? 'text-emerald-400' : 'text-zinc-500'}`}>
+              <div className={`flex items-center gap-1.5 ${userChecks.noAccents ? 'text-emerald-400 font-medium' : 'text-zinc-500'}`}>
                 {userChecks.noAccents ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded-full border border-zinc-600 inline-block text-center text-[9px] leading-3">○</span>}
                 <span>Sem acentos</span>
               </div>
@@ -159,25 +151,26 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Digite sua senha"
+                autoComplete="current-password"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors font-mono"
               />
             </div>
             {/* Live Password Checklist */}
             <div className="grid grid-cols-2 gap-1 pt-1.5 pl-1 text-[11px]">
-              <div className={`flex items-center gap-1.5 ${passChecks.minLength ? 'text-emerald-400' : 'text-zinc-500'}`}>
+              <div className={`flex items-center gap-1.5 ${passChecks.minLength ? 'text-emerald-400 font-medium' : 'text-zinc-500'}`}>
                 {passChecks.minLength ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded-full border border-zinc-600 inline-block text-center text-[9px] leading-3">○</span>}
                 <span>Mín. 8 caracteres</span>
               </div>
-              <div className={`flex items-center gap-1.5 ${passChecks.hasUpper && passChecks.hasLower ? 'text-emerald-400' : 'text-zinc-500'}`}>
+              <div className={`flex items-center gap-1.5 ${passChecks.hasUpper && passChecks.hasLower ? 'text-emerald-400 font-medium' : 'text-zinc-500'}`}>
                 {passChecks.hasUpper && passChecks.hasLower ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded-full border border-zinc-600 inline-block text-center text-[9px] leading-3">○</span>}
                 <span>Maiúsculas & minúsculas</span>
               </div>
-              <div className={`flex items-center gap-1.5 ${passChecks.hasSpecial ? 'text-emerald-400' : 'text-zinc-500'}`}>
+              <div className={`flex items-center gap-1.5 ${passChecks.hasSpecial ? 'text-emerald-400 font-medium' : 'text-zinc-500'}`}>
                 {passChecks.hasSpecial ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded-full border border-zinc-600 inline-block text-center text-[9px] leading-3">○</span>}
                 <span>Caractere especial</span>
               </div>
-              <div className={`flex items-center gap-1.5 ${passChecks.noAccents ? 'text-emerald-400' : 'text-zinc-500'}`}>
+              <div className={`flex items-center gap-1.5 ${passChecks.noAccents ? 'text-emerald-400 font-medium' : 'text-zinc-500'}`}>
                 {passChecks.noAccents ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 rounded-full border border-zinc-600 inline-block text-center text-[9px] leading-3">○</span>}
                 <span>Sem acentos</span>
               </div>
@@ -189,7 +182,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             disabled={!userChecks.isValid || !passChecks.isValid}
             className={`w-full py-3.5 rounded-xl font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2 mt-2 ${
               userChecks.isValid && passChecks.isValid
-                ? 'bg-white hover:bg-zinc-200 text-black cursor-pointer'
+                ? 'bg-white hover:bg-zinc-200 text-black cursor-pointer active:scale-98'
                 : 'bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-70'
             }`}
           >
@@ -198,44 +191,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           </button>
         </form>
 
-        {/* Master Account Info & Demo Accounts */}
-        <div className="pt-4 border-t border-zinc-800/80 space-y-3">
-          <div className="bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-800 text-center">
-            <p className="text-[11px] text-zinc-300">Sua Conta Master (Gerador de Logins):</p>
-            <p className="text-xs font-mono font-bold text-white mt-0.5">Samuel_01 | 072131Sa@</p>
-          </div>
-
-          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block text-center">
-            Ou acesse contas de demonstração:
-          </span>
-          <div className="space-y-2">
-            {AVAILABLE_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.id}
-                onClick={() => handleQuickLogin(acc)}
-                className="w-full p-2.5 rounded-xl bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-800/80 hover:border-zinc-700 transition-all flex items-center justify-between text-left group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <img
-                    src={acc.avatarUrl}
-                    alt={acc.name}
-                    className="w-7 h-7 rounded-full object-cover border border-zinc-700"
-                  />
-                  <div>
-                    <p className="text-xs font-semibold text-zinc-200 group-hover:text-white transition-colors">
-                      {acc.name}
-                    </p>
-                    <p className="text-[10px] text-zinc-400">
-                      {acc.accountType === 'pastor' ? 'Pastor / Supervisor' : acc.gcName}
-                    </p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-                  {acc.username}
-                </span>
-              </button>
-            ))}
-          </div>
+        <div className="pt-3 border-t border-zinc-800/60 text-center">
+          <p className="text-[11px] text-zinc-500 font-medium tracking-wide">
+            EKKLES • Sistema Oficial de Gestão de Células
+          </p>
         </div>
 
       </div>

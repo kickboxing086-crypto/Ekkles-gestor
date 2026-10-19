@@ -1,35 +1,23 @@
 import { GC, Member, PrayerRequest, Scale, WeeklyFrequency, UserAccount } from '../types';
 
-export const AVAILABLE_ACCOUNTS: UserAccount[] = [
-  {
-    id: 'acc-lider-alpha',
-    name: 'Carlos Oliveira',
-    role: 'Líder de GC',
-    accountType: 'lider_gc',
-    gcId: 'gc-1',
-    gcName: 'GC Alpha - Casa de Ana',
-    email: 'carlos.oliveira@gc.com',
-    username: 'lider.carlos',
-    password: 'Carlos@2026!',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-    phone: '(11) 99876-1234',
-  },
-  {
-    id: 'acc-lider-betel',
-    name: 'Mariana Souza',
-    role: 'Líder de GC',
-    accountType: 'lider_gc',
-    gcId: 'gc-2',
-    gcName: 'GC Betel - Sala 3',
-    email: 'mariana.betel@gc.com',
-    username: 'lider.mariana',
-    password: 'Mariana@2026!',
-    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
-    phone: '(11) 98877-6655',
-  },
-];
+export const MASTER_ACCOUNT: UserAccount = {
+  id: 'acc-master-samuel',
+  name: 'Samuel (Administrador Master)',
+  role: 'Gerador de Contas / Admin',
+  accountType: 'pastor',
+  email: 'samuellsilvva02@gmail.com',
+  username: 'Samuel_01',
+  password: '072131Sa@',
+  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
+  phone: '(11) 99999-9999',
+  gcId: 'all',
+  gcName: 'Painel de Gestão de Contas',
+};
 
-export const INITIAL_USER = AVAILABLE_ACCOUNTS[0];
+// Perfis de demonstração removidos conforme solicitado. Sistema pronto para produção.
+export const AVAILABLE_ACCOUNTS: UserAccount[] = [];
+
+export const INITIAL_USER: UserAccount = MASTER_ACCOUNT;
 
 export const INITIAL_GCS: GC[] = [
   {

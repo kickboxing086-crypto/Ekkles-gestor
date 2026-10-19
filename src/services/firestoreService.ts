@@ -11,7 +11,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { GC, Member, PrayerRequest, MeetingReport, PipelineStage } from '../types';
+import { GC, Member, PrayerRequest, MeetingReport, PipelineStage, UserAccount } from '../types';
 import { INITIAL_GCS, INITIAL_MEMBERS, INITIAL_PRAYERS } from '../data/mockData';
 
 const GCS_COLLECTION = 'gcs';
@@ -280,5 +280,94 @@ export async function saveMeetingReportToFirestore(
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, meetingPath);
+  }
+}
+
+// ============================================================================
+// ACCOUNTS MANAGEMENT (LÍDERES DE GC)
+// ============================================================================
+export const ACCOUNTS_COLLECTION = 'accounts';
+
+export function getLocalAccounts(): UserAccount[] {
+  try {
+    const raw = localStorage.getItem('ekkles_leader_accounts');
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error('Error reading local accounts', e);
+  }
+  return [];
+}
+
+export function saveLocalAccounts(accounts: UserAccount[]) {
+  try {
+    localStorage.setItem('ekkles_leader_accounts', JSON.stringify(accounts));
+  } catch (e) {
+    console.error('Error saving local accounts', e);
+  }
+}
+
+export function subscribeToAccounts(onUpdate: (accounts: UserAccount[]) => void): () => void {
+  const colRef = collection(db, ACCOUNTS_COLLECTION);
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      if (!snapshot.empty) {
+        const loaded: UserAccount[] = snapshot.docs.map((docSnap) => docSnap.data() as UserAccount);
+        saveLocalAccounts(loaded);
+        onUpdate(loaded);
+      } else {
+        const local = getLocalAccounts();
+        onUpdate(local);
+      }
+    },
+    (error) => {
+      console.warn('Accounts subscription offline fallback', error);
+      onUpdate(getLocalAccounts());
+    }
+  );
+}
+
+export async function saveAccountToFirestore(account: UserAccount) {
+  try {
+    await setDoc(doc(db, ACCOUNTS_COLLECTION, account.id), {
+      ...account,
+      updatedAt: new Date().toISOString(),
+    });
+    // Also save in local storage
+    const current = getLocalAccounts();
+    const exists = current.some((a) => a.id === account.id);
+    const updated = exists ? current.map((a) => (a.id === account.id ? account : a)) : [account, ...current];
+    saveLocalAccounts(updated);
+  } catch (error) {
+    console.error('Error saving account to Firestore', error);
+    // Local fallback
+    const current = getLocalAccounts();
+    const exists = current.some((a) => a.id === account.id);
+    const updated = exists ? current.map((a) => (a.id === account.id ? account : a)) : [account, ...current];
+    saveLocalAccounts(updated);
+  }
+}
+
+export async function deleteAccountFromFirestore(accountId: string) {
+  try {
+    await deleteDoc(doc(db, ACCOUNTS_COLLECTION, accountId));
+    const current = getLocalAccounts();
+    saveLocalAccounts(current.filter((a) => a.id !== accountId));
+  } catch (error) {
+    console.error('Error deleting account from Firestore', error);
+    const current = getLocalAccounts();
+    saveLocalAccounts(current.filter((a) => a.id !== accountId));
+  }
+}
+
+export async function createLeaderGcInFirestore(gc: GC) {
+  try {
+    await setDoc(doc(db, GCS_COLLECTION, gc.id), {
+      ...gc,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error creating leader GC in Firestore', error);
   }
 }

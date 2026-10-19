@@ -34,7 +34,7 @@ import {
   INITIAL_MEMBERS,
   INITIAL_PRAYERS,
   WEEKLY_FREQUENCY,
-  AVAILABLE_ACCOUNTS,
+  MASTER_ACCOUNT,
 } from './data/mockData';
 import { Member, PrayerRequest, PipelineStage, UserAccount } from './types';
 import {
@@ -79,10 +79,29 @@ export default function App() {
   const [shareGcId, setShareGcId] = useState<string>(INITIAL_GCS[0]?.id || 'gc-1');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const [currentAccount, setCurrentAccount] = useState<UserAccount>(AVAILABLE_ACCOUNTS[0]);
+  const [currentAccount, setCurrentAccount] = useState<UserAccount>(MASTER_ACCOUNT);
   const isLeader = currentAccount.accountType === 'lider_gc';
+  const matchingGcs = gcs.filter(g => g.id === currentAccount.gcId);
   const activeGcs = isLeader 
-    ? gcs.filter(g => g.id === currentAccount.gcId)
+    ? (matchingGcs.length > 0 
+        ? matchingGcs 
+        : [{
+            id: currentAccount.gcId || 'gc-meu',
+            name: currentAccount.gcName || 'Meu Grupo Caseiro',
+            location: 'Local a definir',
+            address: 'Rua Principal, 100',
+            weekday: 'Quarta-feira',
+            time: '20:00',
+            leaderId: currentAccount.id,
+            leaderName: currentAccount.name,
+            coLeaderName: 'A definir',
+            hostName: 'A definir',
+            memberCount: 0,
+            active: true,
+            theme: 'Comunhão e Discipulado',
+            verse: '“Pois onde estiverem dois ou três reunidos em meu nome, ali estou eu no meio deles.” — Mateus 18:20',
+            rsvpCount: 0,
+          }])
     : gcs;
   const activeMembers = isLeader
     ? members.filter(m => m.gcId === currentAccount.gcId)
