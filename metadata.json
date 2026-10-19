@@ -1,0 +1,6 @@
+{
+  "name": "EKKLES",
+  "description": "Sistema executivo e minimalista para gestão de células, grupos caseiros, controle de frequência pastoral, escalas, visitantes e acompanhamento dos membros.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

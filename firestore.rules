@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // GCs (Células e Grupos Caseiros)
+    match /gcs/{gcId} {
+      allow read: if true;
+      allow create, update: if isValidId(gcId) &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() <= 150;
+      allow delete: if isValidId(gcId);
+    }
+
+    // Membros e Visitantes
+    match /members/{memberId} {
+      allow read: if true;
+      allow create, update: if isValidId(memberId) &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() <= 150;
+      allow delete: if isValidId(memberId);
+    }
+
+    // Reuniões Realizadas e Chamadas
+    match /meetings/{meetingId} {
+      allow read: if true;
+      allow create, update: if isValidId(meetingId) &&
+        request.resource.data.topic is string &&
+        request.resource.data.topic.size() <= 255;
+      allow delete: if isValidId(meetingId);
+    }
+
+    // Pedidos de Oração e Intercessão
+    match /prayers/{prayerId} {
+      allow read: if true;
+      allow create, update: if isValidId(prayerId) &&
+        request.resource.data.authorName is string &&
+        request.resource.data.request is string &&
+        request.resource.data.request.size() <= 600;
+      allow delete: if isValidId(prayerId);
+    }
+  }
+}

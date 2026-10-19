@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "GC": {
+      "title": "GC",
+      "description": "Célula ou Grupo Caseiro de comunhão e discipulado",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 150 },
+        "location": { "type": "string", "maxLength": 150 },
+        "address": { "type": "string", "maxLength": 255 },
+        "weekday": { "type": "string", "maxLength": 50 },
+        "time": { "type": "string", "maxLength": 20 },
+        "leaderId": { "type": "string", "maxLength": 128 },
+        "leaderName": { "type": "string", "maxLength": 150 },
+        "hostName": { "type": "string", "maxLength": 150 },
+        "memberCount": { "type": "number" },
+        "active": { "type": "boolean" },
+        "theme": { "type": "string", "maxLength": 255 },
+        "verse": { "type": "string", "maxLength": 300 },
+        "pixKey": { "type": "string", "maxLength": 100 },
+        "whatsappGroup": { "type": "string", "maxLength": 255 },
+        "rsvpCount": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "location", "weekday", "time", "leaderName"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "Membro, líder ou visitante cadastrado em um GC",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "gcId": { "type": "string", "maxLength": 128 },
+        "gcName": { "type": "string", "maxLength": 150 },
+        "name": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "birthDate": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "enum": ["pastor", "lider", "vice_lider", "anfitriao", "membro", "visitante"] },
+        "consecutiveAbsences": { "type": "number" },
+        "lastAttendance": { "type": "string" },
+        "needsFollowUp": { "type": "boolean" },
+        "pipelineStage": { "type": "string", "enum": ["primeiro_contato", "em_acompanhamento", "integrado", "batizado"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "phone", "gcId", "role"]
+    },
+    "Meeting": {
+      "title": "Meeting",
+      "description": "Registro de reunião de célula com lista de chamada e oferta",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "gcId": { "type": "string", "maxLength": 128 },
+        "gcName": { "type": "string", "maxLength": 150 },
+        "date": { "type": "string", "maxLength": 30 },
+        "topic": { "type": "string", "maxLength": 255 },
+        "presentMemberIds": { "type": "array" },
+        "visitorCount": { "type": "number" },
+        "visitorsNames": { "type": "array" },
+        "offeringAmount": { "type": "number" },
+        "observations": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["gcId", "topic", "date"]
+    },
+    "PrayerRequest": {
+      "title": "PrayerRequest",
+      "description": "Pedido de oração e intercessão comunitária da célula",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorName": { "type": "string", "maxLength": 150 },
+        "authorPhone": { "type": "string", "maxLength": 30 },
+        "gcName": { "type": "string", "maxLength": 150 },
+        "request": { "type": "string", "maxLength": 600 },
+        "date": { "type": "string", "maxLength": 30 },
+        "prayingCount": { "type": "number" },
+        "isAnswered": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["authorName", "request"]
+    }
+  },
+  "firestore": {
+    "/gcs/{gcId}": {
+      "schema": "GC",
+      "description": "Coleção de células e grupos caseiros da igreja"
+    },
+    "/members/{memberId}": {
+      "schema": "Member",
+      "description": "Cadastro e controle pastoral dos membros e visitantes"
+    },
+    "/meetings/{meetingId}": {
+      "schema": "Meeting",
+      "description": "Histórico de relatórios e presenças das reuniões"
+    },
+    "/prayers/{prayerId}": {
+      "schema": "PrayerRequest",
+      "description": "Pedidos de oração ativos e intercessão"
+    }
+  }
+}
