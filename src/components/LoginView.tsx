@@ -155,12 +155,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     }
 
     try {
+      const actionCodeSettings = {
+        url: 'https://ekkles-gestor.vercel.app/',
+        handleCodeInApp: true,
+      };
+
       try {
-        await sendPasswordResetEmail(auth, target.email);
+        await sendPasswordResetEmail(auth, target.email, actionCodeSettings);
       } catch (err: any) {
         if (err?.code === 'auth/user-not-found' || err?.message?.includes('user-not-found')) {
           await createUserWithEmailAndPassword(auth, target.email, 'TempPass123!@#');
-          await sendPasswordResetEmail(auth, target.email);
+          await sendPasswordResetEmail(auth, target.email, actionCodeSettings);
         } else {
           throw err;
         }
@@ -183,7 +188,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setError(null);
 
     try {
-      await sendPasswordResetEmail(auth, matchedAccount.email);
+      const actionCodeSettings = {
+        url: 'https://ekkles-gestor.vercel.app/',
+        handleCodeInApp: true,
+      };
+      await sendPasswordResetEmail(auth, matchedAccount.email, actionCodeSettings);
       setSuccessNotice(`Novo e-mail de redefinição enviado para ${matchedAccount.email}.`);
       setResendCooldown(60);
     } catch (err) {
