@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserAccount } from '../types';
 import { getMasterAccount, saveMasterPassword } from '../data/mockData';
 import { getLocalAccounts, subscribeToAccounts, updateAccountPassword } from '../services/firestoreService';
-import { sendPasswordRecoveryEmail, getGoogleAccessToken } from '../services/gmailService';
+import { sendPasswordRecoveryEmail, getGoogleAccessToken, signInWithGoogle } from '../services/gmailService';
 import {
   Lock,
   User,
@@ -162,8 +162,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setEnteredCode('');
 
     try {
-      const token = getGoogleAccessToken();
-      await sendPasswordRecoveryEmail(
+      let token = getGoogleAccessToken();
+      if (!token) {
+        try {
+          const authRes = await signInWithGoogle();
+          token = authRes?.accessToken || null;
+        } catch (authErr) {
+          console.warn('Google sign-in popup closed or failed:', authErr);
+        }
+      }
+
+      const res = await sendPasswordRecoveryEmail(
         {
           toEmail: target.email,
           recipientName: target.name,
@@ -171,12 +180,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         },
         token
       );
-    } catch (err) {
-      console.warn('Erro ao disparar e-mail:', err);
-    } finally {
-      setIsSendingCode(false);
+
+      if (!res.success) {
+        setError(res.error || 'Não foi possível enviar o e-mail. Permita o acesso ao Gmail na janela pop-up do Google.');
+        setIsSendingCode(false);
+        return;
+      }
+
       setResendCooldown(60);
       setAuthMode('forgot_verify');
+    } catch (err) {
+      console.error('Erro ao disparar e-mail:', err);
+      setError('Erro ao enviar e-mail de recuperação. Tente novamente.');
+    } finally {
+      setIsSendingCode(false);
     }
   };
 
@@ -190,8 +207,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setSentCode(newCode);
 
     try {
-      const token = getGoogleAccessToken();
-      await sendPasswordRecoveryEmail(
+      let token = getGoogleAccessToken();
+      if (!token) {
+        try {
+          const authRes = await signInWithGoogle();
+          token = authRes?.accessToken || null;
+        } catch (authErr) {
+          console.warn('Google sign-in popup closed or failed:', authErr);
+        }
+      }
+
+      const res = await sendPasswordRecoveryEmail(
         {
           toEmail: matchedAccount.email,
           recipientName: matchedAccount.name,
@@ -199,11 +225,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         },
         token
       );
+
+      if (!res.success) {
+        setError(res.error || 'Falha no reenvio do e-mail. Permita o acesso ao Gmail.');
+        return;
+      }
+
+      setResendCooldown(60);
     } catch (err) {
-      console.warn('Falha no reenvio:', err);
+      console.error('Falha no reenvio:', err);
+      setError('Erro ao reenviar o código.');
     } finally {
       setIsSendingCode(false);
-      setResendCooldown(60);
     }
   };
 

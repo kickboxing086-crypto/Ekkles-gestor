@@ -282,38 +282,41 @@ export async function sendPasswordRecoveryEmail(
     `;
 
     const token = accessToken || cachedAccessToken;
-    if (token) {
-      const utf8Subject = `=?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
-      const messageParts = [
-        `To: ${payload.toEmail}`,
-        `Subject: ${utf8Subject}`,
-        'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=utf-8',
-        '',
-        htmlBody,
-      ];
-      const rawMessage = messageParts.join('\r\n');
-      const encodedMessage = base64UrlEncode(rawMessage);
-
-      const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ raw: encodedMessage }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        return { success: true, messageId: data.id };
-      }
+    if (!token) {
+      return { success: false, error: 'Autenticação do Google necessária para enviar e-mails via Gmail.' };
     }
 
-    return { success: true };
+    const utf8Subject = `=?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+    const messageParts = [
+      `To: ${payload.toEmail}`,
+      `Subject: ${utf8Subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=utf-8',
+      '',
+      htmlBody,
+    ];
+    const rawMessage = messageParts.join('\r\n');
+    const encodedMessage = base64UrlEncode(rawMessage);
+
+    const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ raw: encodedMessage }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.error?.message || `Erro Gmail API: status ${res.status}` };
+    }
+
+    const data = await res.json();
+    return { success: true, messageId: data.id };
   } catch (error: any) {
-    console.warn('Erro ao disparar e-mail de recuperação:', error);
-    return { success: true };
+    console.error('Erro ao disparar e-mail de recuperação:', error);
+    return { success: false, error: error.message || 'Falha ao enviar e-mail' };
   }
 }
 
