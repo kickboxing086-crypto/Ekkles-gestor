@@ -259,14 +259,14 @@ export async function sendPasswordRecoveryEmail(
     <div class="content">
       <p style="font-size: 15px; margin-top: 0; color: #ffffff;">Olá, <strong>${payload.recipientName}</strong>!</p>
       <p style="font-size: 13px; color: #a1a1aa; line-height: 1.6;">
-        Recebemos uma solicitação de redefinição de senha para a sua conta no sistema <strong>EKKLES</strong>.
-        Utilize o código de confirmação abaixo para validar a operação:
+        Recebemos uma solicitação de redefinição de senha para a sua conta no sistema oficial <strong>EKKLES</strong> (<a href="https://ekkles-gestor.vercel.app" style="color: #34d399; text-decoration: none;">ekkles-gestor.vercel.app</a>).
+        Utilize o código de confirmação de 6 dígitos abaixo para validar a operação no sistema:
       </p>
 
       <div class="code-box">
         <div style="font-size: 11px; text-transform: uppercase; color: #10b981; font-weight: 700; letter-spacing: 1px; margin-bottom: 6px;">Código de Recuperação</div>
         <div class="code">${payload.recoveryCode}</div>
-        <div style="font-size: 11px; color: #a1a1aa; margin-top: 6px;">Válido por 15 minutos</div>
+        <div style="font-size: 11px; color: #a1a1aa; margin-top: 6px;">Válido por 15 minutos • ekkles-gestor.vercel.app</div>
       </div>
 
       <p style="font-size: 12px; color: #71717a; line-height: 1.5;">
@@ -274,7 +274,7 @@ export async function sendPasswordRecoveryEmail(
       </p>
     </div>
     <div class="footer">
-      EKKLES • Sistema de Gestão de Células & Grupos Caseiros
+      EKKLES • Acessar o sistema: <a href="https://ekkles-gestor.vercel.app" style="color: #34d399; text-decoration: none;">ekkles-gestor.vercel.app</a>
     </div>
   </div>
 </body>

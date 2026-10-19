@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { UserAccount } from '../types';
 import { getMasterAccount, saveMasterPassword } from '../data/mockData';
 import { getLocalAccounts, subscribeToAccounts, updateAccountPassword } from '../services/firestoreService';
-import { sendPasswordResetEmail, createUserWithEmailAndPassword, confirmPasswordReset } from 'firebase/auth';
+import { sendPasswordRecoveryEmail, getGoogleAccessToken, signInWithGoogle } from '../services/gmailService';
+import { confirmPasswordReset } from 'firebase/auth';
 import { auth } from '../firebase';
 import {
   Lock,
@@ -169,23 +170,44 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       return;
     }
 
+    setIsSendingCode(true);
+
+    const generated = Math.floor(100000 + Math.random() * 900000).toString();
+    setSentCode(generated);
+    setMatchedAccount(target);
+    setEnteredCode('');
+
     try {
-      try {
-        await sendPasswordResetEmail(auth, target.email);
-      } catch (err: any) {
-        if (err?.code === 'auth/user-not-found' || err?.message?.includes('user-not-found')) {
-          await createUserWithEmailAndPassword(auth, target.email, 'TempPass123!@#');
-          await sendPasswordResetEmail(auth, target.email);
-        } else {
-          throw err;
+      let token = getGoogleAccessToken();
+      if (!token) {
+        try {
+          const authRes = await signInWithGoogle();
+          token = authRes?.accessToken || null;
+        } catch (authErr) {
+          console.warn('Google sign-in popup closed or failed:', authErr);
         }
       }
 
-      setSuccessNotice(`Instruções de redefinição enviadas diretamente para o seu e-mail (${target.email}). Verifique sua caixa de entrada.`);
-      setAuthMode('login');
+      const res = await sendPasswordRecoveryEmail(
+        {
+          toEmail: target.email,
+          recipientName: target.name,
+          recoveryCode: generated,
+        },
+        token
+      );
+
+      if (!res.success) {
+        setError(res.error || 'Não foi possível enviar o e-mail personalizado.');
+        setIsSendingCode(false);
+        return;
+      }
+
+      setResendCooldown(60);
+      setAuthMode('forgot_verify');
     } catch (err: any) {
-      console.error('Erro ao enviar e-mail de recuperação:', err);
-      setError(err?.message || 'Erro ao enviar e-mail de recuperação. Tente novamente.');
+      console.error('Erro ao disparar e-mail:', err);
+      setError('Erro ao enviar e-mail de recuperação.');
     } finally {
       setIsSendingCode(false);
     }
@@ -197,13 +219,38 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setIsSendingCode(true);
     setError(null);
 
+    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+    setSentCode(newCode);
+
     try {
-      await sendPasswordResetEmail(auth, matchedAccount.email);
-      setSuccessNotice(`Novo e-mail de redefinição enviado para ${matchedAccount.email}.`);
+      let token = getGoogleAccessToken();
+      if (!token) {
+        try {
+          const authRes = await signInWithGoogle();
+          token = authRes?.accessToken || null;
+        } catch (authErr) {
+          console.warn('Google sign-in popup closed or failed:', authErr);
+        }
+      }
+
+      const res = await sendPasswordRecoveryEmail(
+        {
+          toEmail: matchedAccount.email,
+          recipientName: matchedAccount.name,
+          recoveryCode: newCode,
+        },
+        token
+      );
+
+      if (!res.success) {
+        setError(res.error || 'Falha no reenvio do e-mail.');
+        return;
+      }
+
       setResendCooldown(60);
     } catch (err: any) {
       console.error('Falha no reenvio:', err);
-      setError(err?.message || 'Erro ao reenviar o e-mail.');
+      setError('Erro ao reenviar o código.');
     } finally {
       setIsSendingCode(false);
     }
