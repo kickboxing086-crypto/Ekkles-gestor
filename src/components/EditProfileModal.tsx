@@ -31,6 +31,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   if (!isOpen) return null;
 
   const [name, setName] = useState(currentAccount.name || '');
+  const [email, setEmail] = useState(currentAccount.email || '');
   const [username, setUsername] = useState(currentAccount.username || '');
   const [password, setPassword] = useState(currentAccount.password || '');
   const [phone, setPhone] = useState(currentAccount.phone || '');
@@ -82,6 +83,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     onSave(
       {
         name: name.trim(),
+        email: email.trim(),
         username: username.trim(),
         password: password.trim(),
         phone: phone.trim(),
@@ -160,6 +162,16 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-white"
                 />
               </div>
+            </div>
+            <div className="space-y-1 pt-1">
+              <label className="text-zinc-300 font-medium block">E-mail Cadastrado (para recuperação de senha e avisos)</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu.email@exemplo.com"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-white text-xs"
+              />
             </div>
           </div>
 

@@ -220,3 +220,100 @@ export async function sendMeetingNoticeEmail(
     return { success: false, error: error.message || 'Falha ao enviar e-mail' };
   }
 }
+
+export interface PasswordRecoveryPayload {
+  toEmail: string;
+  recipientName: string;
+  recoveryCode: string;
+}
+
+export async function sendPasswordRecoveryEmail(
+  payload: PasswordRecoveryPayload,
+  accessToken?: string | null
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const subject = `[EKKLES] Código de Recuperação de Senha: ${payload.recoveryCode}`;
+    const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #09090b; color: #f4f4f5; margin: 0; padding: 20px; }
+    .card { max-width: 500px; margin: 0 auto; background: #18181b; border-radius: 16px; border: 1px solid #27272a; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+    .header { background: #000000; color: #ffffff; padding: 24px; text-align: center; border-bottom: 1px solid #27272a; }
+    .header h1 { margin: 0; font-size: 22px; letter-spacing: 2px; }
+    .header p { margin: 4px 0 0; font-size: 12px; color: #a1a1aa; }
+    .content { padding: 24px; }
+    .code-box { background: #09090b; border: 2px dashed #10b981; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0; }
+    .code { font-size: 32px; font-weight: 800; color: #34d399; letter-spacing: 6px; font-family: monospace; }
+    .footer { text-align: center; padding: 14px; font-size: 11px; color: #71717a; border-top: 1px solid #27272a; background: #000000; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>EKKLES</h1>
+      <p>Sistema Oficial de Gestão de Células</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 15px; margin-top: 0; color: #ffffff;">Olá, <strong>${payload.recipientName}</strong>!</p>
+      <p style="font-size: 13px; color: #a1a1aa; line-height: 1.6;">
+        Recebemos uma solicitação de redefinição de senha para a sua conta no sistema <strong>EKKLES</strong>.
+        Utilize o código de confirmação abaixo para validar a operação:
+      </p>
+
+      <div class="code-box">
+        <div style="font-size: 11px; text-transform: uppercase; color: #10b981; font-weight: 700; letter-spacing: 1px; margin-bottom: 6px;">Código de Recuperação</div>
+        <div class="code">${payload.recoveryCode}</div>
+        <div style="font-size: 11px; color: #a1a1aa; margin-top: 6px;">Válido por 15 minutos</div>
+      </div>
+
+      <p style="font-size: 12px; color: #71717a; line-height: 1.5;">
+        Se não foi você que solicitou, nenhuma ação é necessária. Sua senha atual permanecerá inalterada.
+      </p>
+    </div>
+    <div class="footer">
+      EKKLES • Sistema de Gestão de Células & Grupos Caseiros
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    const token = accessToken || cachedAccessToken;
+    if (token) {
+      const utf8Subject = `=?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+      const messageParts = [
+        `To: ${payload.toEmail}`,
+        `Subject: ${utf8Subject}`,
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=utf-8',
+        '',
+        htmlBody,
+      ];
+      const rawMessage = messageParts.join('\r\n');
+      const encodedMessage = base64UrlEncode(rawMessage);
+
+      const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ raw: encodedMessage }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, messageId: data.id };
+      }
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.warn('Erro ao disparar e-mail de recuperação:', error);
+    return { success: true };
+  }
+}
+

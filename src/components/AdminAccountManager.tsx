@@ -40,6 +40,7 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
 
   // New account form
   const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newGcName, setNewGcName] = useState('GC Nova Vida');
@@ -47,6 +48,7 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
   // Editing state
   const [editingAccount, setEditingAccount] = useState<UserAccount | null>(null);
   const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editGcName, setEditGcName] = useState('');
@@ -94,12 +96,13 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
     }
 
     const newGcId = `gc-${Date.now()}`;
+    const cleanEmail = newEmail.trim() || `${newUsername.toLowerCase().replace(/[^a-z0-9]/g, '')}@ekkles.com`;
     const newAcc: UserAccount = {
       id: `acc-${Date.now()}`,
       name: newName.trim(),
       role: 'Líder de GC',
       accountType: 'lider_gc',
-      email: `${newUsername.toLowerCase().replace(/[^a-z0-9]/g, '')}@ekkles.com`,
+      email: cleanEmail,
       username: newUsername.trim(),
       password: newPassword,
       avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200',
@@ -133,6 +136,7 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
 
     setSuccessMsg(`Conta de Líder de GC gerada com sucesso para ${newAcc.name} (${newAcc.username})!`);
     setNewName('');
+    setNewEmail('');
     setNewUsername('');
     setNewPassword('');
     setNewGcName('GC Nova Vida');
@@ -141,6 +145,7 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
   const handleStartEdit = (acc: UserAccount) => {
     setEditingAccount(acc);
     setEditName(acc.name);
+    setEditEmail(acc.email || '');
     setEditUsername(acc.username);
     setEditPassword(acc.password);
     setEditGcName(acc.gcName || 'Meu GC');
@@ -158,6 +163,7 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
     const updated: UserAccount = {
       ...editingAccount,
       name: editName.trim(),
+      email: editEmail.trim() || editingAccount.email,
       username: editUsername.trim(),
       password: editPassword.trim(),
       gcName: editGcName.trim(),
@@ -264,6 +270,17 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
                   value={newGcName}
                   onChange={(e) => setNewGcName(e.target.value)}
                   placeholder="Ex: GC Alpha - Casa de Ana"
+                  className="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-white transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-zinc-300 font-medium block">E-mail do Líder (para recuperação de senha e avisos)</label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Ex: lider.carlos@gmail.com"
                   className="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-white transition-colors"
                 />
               </div>
@@ -453,6 +470,16 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
                     type="text"
                     value={editGcName}
                     onChange={(e) => setEditGcName(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-zinc-300 font-medium block">E-mail do Líder (para recuperação de senha)</label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-white"
                   />
                 </div>

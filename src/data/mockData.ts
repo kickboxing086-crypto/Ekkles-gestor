@@ -1,18 +1,29 @@
 import { GC, Member, PrayerRequest, Scale, WeeklyFrequency, UserAccount } from '../types';
 
-export const MASTER_ACCOUNT: UserAccount = {
-  id: 'acc-master-samuel',
-  name: 'Samuel (Administrador Master)',
-  role: 'Gerador de Contas / Admin',
-  accountType: 'pastor',
-  email: 'samuellsilvva02@gmail.com',
-  username: 'Samuel_01',
-  password: '072131Sa@',
-  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-  phone: '(11) 99999-9999',
-  gcId: 'all',
-  gcName: 'Painel de Gestão de Contas',
+export const getMasterAccount = (): UserAccount => {
+  const customPass = typeof window !== 'undefined' ? localStorage.getItem('ekkles_master_password') : null;
+  return {
+    id: 'acc-master-samuel',
+    name: 'Samuel (Administrador Master)',
+    role: 'Gerador de Contas / Admin',
+    accountType: 'pastor',
+    email: 'samuellsilvva02@gmail.com',
+    username: 'Samuel_01',
+    password: customPass || '072131Sa@',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
+    phone: '(11) 99999-9999',
+    gcId: 'all',
+    gcName: 'Painel de Gestão de Contas',
+  };
 };
+
+export const saveMasterPassword = (newPassword: string) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('ekkles_master_password', newPassword);
+  }
+};
+
+export const MASTER_ACCOUNT: UserAccount = getMasterAccount();
 
 // Perfis de demonstração removidos conforme solicitado. Sistema pronto para produção.
 export const AVAILABLE_ACCOUNTS: UserAccount[] = [];

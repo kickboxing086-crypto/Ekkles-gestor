@@ -371,3 +371,18 @@ export async function createLeaderGcInFirestore(gc: GC) {
     console.error('Error creating leader GC in Firestore', error);
   }
 }
+
+export async function updateAccountPassword(accountId: string, newPassword: string) {
+  try {
+    await updateDoc(doc(db, ACCOUNTS_COLLECTION, accountId), {
+      password: newPassword,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.warn('Firestore password update fallback to local', error);
+  }
+  const current = getLocalAccounts();
+  const updated = current.map((a) => (a.id === accountId ? { ...a, password: newPassword } : a));
+  saveLocalAccounts(updated);
+}
+

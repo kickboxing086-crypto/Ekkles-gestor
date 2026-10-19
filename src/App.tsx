@@ -28,6 +28,7 @@ import {
   togglePrayInFirestore,
   saveMeetingReportToFirestore,
   seedInitialFirestoreData,
+  saveAccountToFirestore,
 } from './services/firestoreService';
 import {
   INITIAL_GCS,
@@ -865,8 +866,10 @@ export default function App() {
         onClose={() => setIsEditProfileOpen(false)}
         currentAccount={currentAccount}
         gc={activeGcs[0] || gcs[0]}
-        onSave={(updatedAccount, updatedGc) => {
-          setCurrentAccount(prev => ({ ...prev, ...updatedAccount }));
+        onSave={async (updatedAccount, updatedGc) => {
+          const merged = { ...currentAccount, ...updatedAccount };
+          setCurrentAccount(merged);
+          await saveAccountToFirestore(merged);
           if (updatedGc) {
             setGcs(prev => prev.map(g => g.id === (activeGcs[0]?.id || 'gc-1') ? { ...g, ...updatedGc } : g));
           }
