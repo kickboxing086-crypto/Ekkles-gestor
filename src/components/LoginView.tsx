@@ -503,29 +503,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               </p>
             </div>
 
-            {/* Visual assistance badge to ensure accuracy & avoid lockout */}
-            <div className="p-3 bg-emerald-950/30 border border-emerald-800/40 rounded-xl flex items-center justify-between text-xs">
-              <div>
-                <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider block">
-                  Código Enviado
-                </span>
-                <span className="font-mono text-base font-extrabold text-white tracking-widest">
-                  {sentCode}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setEnteredCode(sentCode);
-                  setCopiedCode(true);
-                  setTimeout(() => setCopiedCode(false), 2000);
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedCode ? 'Preenchido!' : 'Preencher'}</span>
-              </button>
-            </div>
+
 
             {/* 6-Digit Code Input */}
             <div className="space-y-1.5">
