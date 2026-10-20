@@ -44,6 +44,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   // Recovery flow states
+  const [recoveryType, setRecoveryType] = useState<'username' | 'email'>('username');
   const [recoveryInput, setRecoveryInput] = useState('');
   const [matchedAccount, setMatchedAccount] = useState<UserAccount | null>(null);
   const [sentCode, setSentCode] = useState<string>('');
@@ -212,23 +213,33 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     const query = recoveryInput.trim().toLowerCase();
 
     if (!query) {
-      setError('Informe seu nome de usuário ou e-mail cadastrado.');
+      setError(recoveryType === 'username' ? 'Informe seu nome de usuário.' : 'Informe seu e-mail cadastrado.');
       return;
     }
 
     const master = getMasterAccount();
     let target: UserAccount | undefined;
 
-    if (query === 'samuel_01' || query === master.email.toLowerCase()) {
-      target = master;
+    if (recoveryType === 'username') {
+      if (query === 'samuel_01' || query === master.username.toLowerCase()) {
+        target = master;
+      } else {
+        target = accounts.find((a) => a.username.toLowerCase() === query);
+      }
     } else {
-      target = accounts.find(
-        (a) => a.username.toLowerCase() === query || a.email.toLowerCase() === query
-      );
+      if (query === master.email.toLowerCase()) {
+        target = master;
+      } else {
+        target = accounts.find((a) => a.email.toLowerCase() === query);
+      }
     }
 
     if (!target) {
-      setError('Nenhuma conta foi localizada com esse usuário ou e-mail. Verifique os dados digitados.');
+      setError(
+        recoveryType === 'username'
+          ? 'Nenhuma conta foi localizada com esse nome de usuário.'
+          : 'Nenhuma conta foi localizada com esse e-mail.'
+      );
       return;
     }
 
@@ -591,19 +602,53 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               </div>
             </div>
 
+            {/* Recovery Type Selector Options */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-zinc-950 rounded-xl border border-zinc-800 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setRecoveryType('username');
+                  setRecoveryInput('');
+                  setError(null);
+                }}
+                className={`py-2 rounded-lg font-medium transition-all cursor-pointer ${
+                  recoveryType === 'username'
+                    ? 'bg-zinc-800 text-white shadow'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Nome de Usuário
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRecoveryType('email');
+                  setRecoveryInput('');
+                  setError(null);
+                }}
+                className={`py-2 rounded-lg font-medium transition-all cursor-pointer ${
+                  recoveryType === 'email'
+                    ? 'bg-zinc-800 text-white shadow'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                E-mail
+              </button>
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-zinc-300 block">
-                Nome de Usuário ou E-mail Cadastrado
+                {recoveryType === 'username' ? 'Nome de Usuário Cadastrado' : 'E-mail Cadastrado'}
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
-                  <Mail className="w-4 h-4" />
+                  {recoveryType === 'username' ? <User className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
                 </span>
                 <input
-                  type="text"
+                  type={recoveryType === 'email' ? 'email' : 'text'}
                   value={recoveryInput}
                   onChange={(e) => setRecoveryInput(e.target.value)}
-                  placeholder="Ex: Samuel_01 ou seu.email@exemplo.com"
+                  placeholder={recoveryType === 'username' ? 'Ex: samuel_01' : 'Ex: seu.email@exemplo.com'}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors"
                 />
               </div>
