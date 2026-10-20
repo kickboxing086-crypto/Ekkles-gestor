@@ -222,7 +222,7 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
       {/* Top Header */}
       <header className="h-20 bg-[#121214] border-b border-[#27272A] px-4 sm:px-8 flex items-center justify-between">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-white text-black flex items-center justify-center font-bold shadow-lg">
+          <div className="w-11 h-11 rounded-2xl bg-black text-white border border-zinc-800 flex items-center justify-center font-bold shadow-lg">
             <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
               <path d="M12 2L3 9v12h18V9l-9-7zm0 2.84L18.16 9H5.84L12 4.84zM5 19v-8h3v8H5zm5 0v-5h4v5h-4zm6 0v-8h3v8h-3z"/>
             </svg>

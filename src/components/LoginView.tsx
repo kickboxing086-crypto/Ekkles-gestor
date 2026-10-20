@@ -420,7 +420,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         
         {/* Brand Logo: Black and White Church */}
         <div className="text-center space-y-3">
-          <div className="w-16 h-16 bg-white text-black rounded-2xl mx-auto flex items-center justify-center shadow-xl border border-zinc-300">
+          <div className="w-16 h-16 bg-black text-white rounded-2xl mx-auto flex items-center justify-center shadow-xl border border-zinc-800">
             <svg className="w-9 h-9 fill-current" viewBox="0 0 24 24">
               <path d="M12 2L3 9v12h18V9l-9-7zm0 2.84L18.16 9H5.84L12 4.84zM5 19v-8h3v8H5zm5 0v-5h4v5h-4zm6 0v-8h3v8h-3z"/>
             </svg>
