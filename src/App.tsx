@@ -353,40 +353,7 @@ export default function App() {
           {/* TAB 1: PAINEL / DASHBOARD PRINCIPAL */}
           {currentTab === 'painel' && (
             <div className="space-y-6">
-              {/* Quick contextual banner with link sharing */}
-              <div className="bg-[#18181B]/80 border border-[#27272A] p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[#FAFAFA] font-medium">
-                    {isLeader ? `Seu GC: ${currentAccount.gcName}` : 'Dashboard Executivo:'}
-                  </span>
-                  <span className="text-[#A1A1AA]">
-                    {isLeader ? 'Acompanhamento do Grupo Caseiro' : 'Semana de Encontros • Supervisor: Pr. Marcos Silva'}
-                  </span>
-                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span>Online</span>
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setShareGcId(activeGcs[0]?.id || 'gc-1');
-                      setIsShareModalOpen(true);
-                    }}
-                    className="text-emerald-300 hover:text-emerald-200 flex items-center gap-1.5 font-medium text-[11px] bg-emerald-600/20 hover:bg-emerald-600/30 px-3 py-1.5 rounded-lg border border-emerald-500/30 transition-colors shadow-sm"
-                  >
-                    <Share2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Enviar Link aos Membros</span>
-                  </button>
-                  <button
-                    onClick={() => setIsMeetingModalOpen(true)}
-                    className="bg-white hover:bg-zinc-200 text-black px-3 py-1.5 rounded-lg font-semibold text-[11px] transition-colors"
-                  >
-                    + Registrar Chamada
-                  </button>
-                </div>
-              </div>
+
 
               {/* 1. Metric Cards Row (KPI Cards) */}
               <KPICards

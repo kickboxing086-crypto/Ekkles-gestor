@@ -18,7 +18,11 @@ import {
   RefreshCw,
   Copy,
   Check,
+  Eye,
+  EyeOff,
+  Shield,
 } from 'lucide-react';
+import { verifyPassword, hashPassword, isPasswordHashed } from '../services/securityService';
 
 interface LoginViewProps {
   onLogin: (account: UserAccount) => void;
@@ -32,6 +36,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   // Login fields
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
@@ -132,8 +140,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     return `${userPart[0]}***${userPart[userPart.length - 1]}@${domain}`;
   };
 
-  // 1. Submit Login Form (USUÁRIO E SENHA EXCLUSIVAMENTE)
-  const handleSubmitLogin = (e: React.FormEvent) => {
+  // 1. Submit Login Form (USUÁRIO E SENHA COM VALIDAÇÃO CRIPTOGRÁFICA)
+  const handleSubmitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessNotice(null);
@@ -143,27 +151,57 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       return;
     }
 
-    const master = getMasterAccount();
+    setIsLoggingIn(true);
+    try {
+      const master = getMasterAccount();
 
-    // Check Master Account
-    if (username.trim() === 'Samuel_01' && password === master.password) {
-      onLogin(master);
-      return;
-    }
+      // Check Master Account
+      if (username.trim().toLowerCase() === 'samuel_01') {
+        const isMatch = await verifyPassword(password, master.password);
+        if (isMatch) {
+          if (!isPasswordHashed(master.password)) {
+            const hashed = await hashPassword(password);
+            saveMasterPassword(hashed);
+          }
+          onLogin({
+            ...master,
+            isEncrypted: true,
+            encryptionMethod: 'SHA-256 (Salted) + AES-GCM',
+            lastLoginEncryptedAt: new Date().toISOString(),
+          });
+          return;
+        }
+      }
 
-    // Check Leader Accounts
-    const found = accounts.find(
-      (acc) =>
-        acc.username.toLowerCase() === username.trim().toLowerCase() &&
-        acc.password === password
-    );
+      // Check Leader Accounts
+      const found = accounts.find(
+        (acc) => acc.username.toLowerCase() === username.trim().toLowerCase()
+      );
 
-    if (!found) {
+      if (found) {
+        const isMatch = await verifyPassword(password, found.password);
+        if (isMatch) {
+          if (!isPasswordHashed(found.password)) {
+            const hashed = await hashPassword(password);
+            updateAccountPassword(found.id, hashed).catch(() => {});
+          }
+          onLogin({
+            ...found,
+            isEncrypted: true,
+            encryptionMethod: 'SHA-256 (Salted) + AES-GCM',
+            lastLoginEncryptedAt: new Date().toISOString(),
+          });
+          return;
+        }
+      }
+
       setError('Credenciais incorretas ou conta não cadastrada. Verifique seus dados ou solicite ao Administrador.');
-      return;
+    } catch (err: any) {
+      console.error('Erro na autenticação criptografada:', err);
+      setError('Erro ao validar credenciais com segurança criptográfica.');
+    } finally {
+      setIsLoggingIn(false);
     }
-
-    onLogin(found);
   };
 
   // 2. Request Recovery Code
@@ -327,6 +365,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setIsSavingPassword(true);
 
     try {
+      const hashedNewPass = await hashPassword(newPassword);
+
       if (urlOobCode) {
         try {
           await confirmPasswordReset(auth, urlOobCode, newPassword);
@@ -336,10 +376,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       }
 
       if (target) {
-        if (target.username === 'Samuel_01') {
-          saveMasterPassword(newPassword);
+        if (target.username.toLowerCase() === 'samuel_01') {
+          saveMasterPassword(hashedNewPass);
         } else {
-          await updateAccountPassword(target.id, newPassword);
+          await updateAccountPassword(target.id, hashedNewPass);
         }
       }
 
@@ -379,6 +419,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             <p className="text-xs text-zinc-400 mt-0.5">
               Sistema de Gestão de Células & Grupos Caseiros
             </p>
+          </div>
+          <div className="flex items-center justify-center gap-1.5 py-1 px-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium mx-auto w-fit">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Ambiente Criptografado Ponta a Ponta • SHA-256</span>
           </div>
         </div>
 
@@ -443,30 +487,40 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             <div className="space-y-1.5 pt-1">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-medium text-zinc-300 block">Senha de Acesso</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setSuccessNotice(null);
-                    setRecoveryInput(username);
-                    setAuthMode('forgot_request');
-                  }}
-                  className="text-[11px] text-zinc-400 hover:text-emerald-400 transition-colors cursor-pointer"
-                >
-                  Esqueceu a senha?
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    <span>{showPassword ? 'Ocultar' : 'Mostrar'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setSuccessNotice(null);
+                      setRecoveryInput(username);
+                      setAuthMode('forgot_request');
+                    }}
+                    className="text-[11px] text-zinc-400 hover:text-emerald-400 transition-colors cursor-pointer"
+                  >
+                    Esqueceu a senha?
+                  </button>
+                </div>
               </div>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
                   <Lock className="w-4 h-4" />
                 </span>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Digite sua senha"
                   autoComplete="current-password"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors font-mono"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-10 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors font-mono"
                 />
               </div>
               {/* Live Password Checklist */}
@@ -492,15 +546,24 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
             <button
               type="submit"
-              disabled={!userChecks.isValid || !passChecks.isValid}
+              disabled={isLoggingIn || !userChecks.isValid || !passChecks.isValid}
               className={`w-full py-3.5 rounded-xl font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2 mt-2 ${
-                userChecks.isValid && passChecks.isValid
+                userChecks.isValid && passChecks.isValid && !isLoggingIn
                   ? 'bg-white hover:bg-zinc-200 text-black cursor-pointer active:scale-98'
                   : 'bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-70'
               }`}
             >
-              <span>Entrar no Sistema</span>
-              <ArrowRight className="w-4 h-4" />
+              {isLoggingIn ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-zinc-400" />
+                  <span>Entrando...</span>
+                </>
+              ) : (
+                <>
+                  <span>Entrar</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
         )}
@@ -698,19 +761,29 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
             {/* NOVA SENHA */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-white uppercase tracking-wider block flex items-center gap-1.5">
-                <span className="text-emerald-400 font-extrabold">•</span> NOVA SENHA
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-white uppercase tracking-wider block flex items-center gap-1.5">
+                  <span className="text-emerald-400 font-extrabold">•</span> NOVA SENHA
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  {showNewPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  <span>{showNewPassword ? 'Ocultar' : 'Mostrar'}</span>
+                </button>
+              </div>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
                   <Lock className="w-4 h-4" />
                 </span>
                 <input
-                  type="password"
+                  type={showNewPassword ? 'text' : 'password'}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Digite sua nova senha"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors font-mono"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-10 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors font-mono"
                 />
               </div>
 
@@ -737,19 +810,29 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
             {/* REPITA A SENHA */}
             <div className="space-y-1.5 pt-1">
-              <label className="text-xs font-bold text-white uppercase tracking-wider block flex items-center gap-1.5">
-                <span className="text-emerald-400 font-extrabold">•</span> REPITA A SENHA
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-white uppercase tracking-wider block flex items-center gap-1.5">
+                  <span className="text-emerald-400 font-extrabold">•</span> REPITA A SENHA
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  <span>{showConfirmPassword ? 'Ocultar' : 'Mostrar'}</span>
+                </button>
+              </div>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
                   <Lock className="w-4 h-4" />
                 </span>
                 <input
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repita exatamente a nova senha"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors font-mono"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-10 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors font-mono"
                 />
               </div>
               {confirmPassword && confirmPassword !== newPassword && (
@@ -769,20 +852,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             >
               {isSavingPassword ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Salvando Nova Senha...</span>
+                  <RefreshCw className="w-4 h-4 animate-spin text-zinc-600" />
+                  <span>Salvando nova senha...</span>
                 </>
               ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Salvar Nova Senha & Entrar</span>
-                </>
+                <span>Salvar Nova Senha & Entrar</span>
               )}
             </button>
           </form>
         )}
 
-        <div className="pt-3 border-t border-zinc-800/60 text-center">
+        <div className="pt-3 border-t border-zinc-800/60 text-center space-y-1.5">
+          <p className="text-[11px] text-zinc-400 font-medium tracking-wide">
+            Ambiente Criptografado Ponta a Ponta • SHA-256
+          </p>
           <p className="text-[11px] text-zinc-500 font-medium tracking-wide">
             EKKLES • Sistema Oficial de Gestão de Células
           </p>

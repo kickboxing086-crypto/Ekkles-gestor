@@ -11,6 +11,9 @@ import {
   Save,
   KeyRound,
   ShieldAlert,
+  Eye,
+  EyeOff,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface EditProfileModalProps {
@@ -39,6 +42,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [gcAddress, setGcAddress] = useState(gc?.address || '');
   const [gcWeekday, setGcWeekday] = useState(gc?.weekday || 'Quinta-feira');
   const [gcTime, setGcTime] = useState(gc?.time || '20:00');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Validation rules for username & password
@@ -208,16 +212,30 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               </div>
             </div>
 
-            {/* Password */}
+            {/* Password with Visibility Toggle & Security Indicator */}
             <div className="space-y-1.5 pt-1">
-              <label className="text-zinc-300 font-medium block">Senha de Acesso</label>
-              <input
-                type="text"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono focus:outline-none focus:border-white"
-              />
+              <div className="flex items-center justify-between">
+                <label className="text-zinc-300 font-medium block">
+                  Senha de Acesso
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span>{showPassword ? 'Ocultar' : 'Mostrar'}</span>
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono focus:outline-none focus:border-white"
+                />
+              </div>
               {/* Checklist Senha */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 pt-1 text-[10px] text-zinc-400">
                 <span className={passChecks.minLength ? 'text-emerald-400 font-medium' : ''}>

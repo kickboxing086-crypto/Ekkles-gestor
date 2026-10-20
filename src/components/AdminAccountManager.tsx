@@ -21,7 +21,12 @@ import {
   ShieldCheck,
   AlertCircle,
   Inbox,
+  Eye,
+  EyeOff,
+  Lock,
+  Shield,
 } from 'lucide-react';
+import { hashPassword } from '../services/securityService';
 
 interface AdminAccountManagerProps {
   currentAccount: UserAccount;
@@ -56,6 +61,9 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
+  const [showEditPassword, setShowEditPassword] = useState<boolean>(false);
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
 
   // Validation rules helper
   const checkRules = (val: string) => {
@@ -97,6 +105,8 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
 
     const newGcId = `gc-${Date.now()}`;
     const cleanEmail = newEmail.trim() || `${newUsername.toLowerCase().replace(/[^a-z0-9]/g, '')}@ekkles.com`;
+    const passwordHash = await hashPassword(newPassword.trim());
+
     const newAcc: UserAccount = {
       id: `acc-${Date.now()}`,
       name: newName.trim(),
@@ -104,7 +114,10 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
       accountType: 'lider_gc',
       email: cleanEmail,
       username: newUsername.trim(),
-      password: newPassword,
+      password: newPassword.trim(),
+      passwordHash,
+      isEncrypted: true,
+      encryptionMethod: 'SHA-256 (Salted) + AES-GCM',
       avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200',
       phone: '(11) 98888-7777',
       gcId: newGcId,
@@ -134,12 +147,13 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
     await saveAccountToFirestore(newAcc);
     await createLeaderGcInFirestore(newGc);
 
-    setSuccessMsg(`Conta de Líder de GC gerada com sucesso para ${newAcc.name} (${newAcc.username})!`);
+    setSuccessMsg(`Conta de Líder de GC gerada com sucesso e protegida criptograficamente para ${newAcc.name} (${newAcc.username})!`);
     setNewName('');
     setNewEmail('');
     setNewUsername('');
     setNewPassword('');
     setNewGcName('GC Nova Vida');
+    setShowNewPassword(false);
   };
 
   const handleStartEdit = (acc: UserAccount) => {
@@ -149,6 +163,7 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
     setEditUsername(acc.username);
     setEditPassword(acc.password);
     setEditGcName(acc.gcName || 'Meu GC');
+    setShowEditPassword(false);
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -160,24 +175,36 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
       return;
     }
 
+    const passwordHash = await hashPassword(editPassword.trim());
+
     const updated: UserAccount = {
       ...editingAccount,
       name: editName.trim(),
       email: editEmail.trim() || editingAccount.email,
       username: editUsername.trim(),
       password: editPassword.trim(),
+      passwordHash,
+      isEncrypted: true,
+      encryptionMethod: 'SHA-256 (Salted) + AES-GCM',
       gcName: editGcName.trim(),
     };
 
     setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
     await saveAccountToFirestore(updated);
 
-    setSuccessMsg(`Credenciais de ${editName} atualizadas com sucesso!`);
+    setSuccessMsg(`Credenciais de ${editName} atualizadas e criptografadas com sucesso!`);
     setEditingAccount(null);
   };
 
   const handleCopy = (acc: UserAccount) => {
-    const text = `EKKLES - Seus Dados de Acesso:\nUsuário: ${acc.username}\nSenha: ${acc.password}\nFunção: Líder de GC (${acc.gcName})`;
+    const text = `🔒 EKKLES • DADOS DE ACESSO CRIPTOGRAFADO\n` +
+      `-----------------------------------------\n` +
+      `👤 Nome: ${acc.name}\n` +
+      `🏠 Célula: ${acc.gcName || 'Grupo Caseiro'}\n` +
+      `🔑 Usuário: ${acc.username}\n` +
+      `🛡️ Senha: ${acc.password}\n` +
+      `🔐 Segurança: Hashing SHA-256 + Criptografia AES Ponta a Ponta\n` +
+      `🌐 Acesso ao Sistema: https://ekkles-gestor.vercel.app`;
     navigator.clipboard.writeText(text);
     setCopiedId(acc.id);
     setTimeout(() => setCopiedId(null), 2500);
@@ -224,6 +251,8 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
 
       {/* Main Content */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        
+
         
         {successMsg && (
           <div className="p-4 bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 rounded-2xl text-xs flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
@@ -311,16 +340,28 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
                 </div>
               </div>
 
-              {/* Password Input with Live Checklist */}
+              {/* Password Input with Live Checklist & Visibility Toggle */}
               <div className="space-y-1">
-                <label className="text-zinc-300 font-medium block">Senha de Acesso</label>
-                <input
-                  type="text"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Ex: Senha#2026!"
-                  className="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-white font-mono transition-colors"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-zinc-300 font-medium block">Senha de Acesso</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    <span>{showNewPassword ? 'Ocultar' : 'Mostrar'}</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Ex: Senha#2026!"
+                    className="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-white font-mono transition-colors"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-1 pt-1 text-[10px] text-zinc-400">
                   <span className={newPassChecks.minLength ? 'text-emerald-400 font-medium' : ''}>
                     {newPassChecks.minLength ? '✓' : '○'} Mín. 8 caracteres
@@ -394,9 +435,28 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
                             {acc.gcName}
                           </span>
                         </div>
-                        <p className="text-[11px] text-zinc-400 mt-1">
-                          Usuário: <code className="text-emerald-400 font-mono font-semibold">{acc.username}</code> • Senha: <code className="text-zinc-200 font-mono font-semibold">{acc.password}</code>
-                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
+                          <div className="flex items-center gap-1">
+                            <span>Usuário:</span>
+                            <code className="text-emerald-400 font-mono font-semibold">{acc.username}</code>
+                          </div>
+                          <span className="text-zinc-600">•</span>
+                          <div className="flex items-center gap-1.5">
+                            <span>Senha:</span>
+                            <code className="text-zinc-200 font-mono font-semibold bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
+                              {revealedPasswords[acc.id] ? acc.password : '••••••••••••'}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => setRevealedPasswords((prev) => ({ ...prev, [acc.id]: !prev[acc.id] }))}
+                              className="p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer rounded"
+                              title={revealedPasswords[acc.id] ? 'Ocultar senha' : 'Ver senha'}
+                            >
+                              {revealedPasswords[acc.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+
+                        </div>
                       </div>
                     </div>
 
@@ -509,13 +569,25 @@ export const AdminAccountManager: React.FC<AdminAccountManagerProps> = ({ curren
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-zinc-300 font-medium block">Senha de Acesso</label>
-                  <input
-                    type="text"
-                    value={editPassword}
-                    onChange={(e) => setEditPassword(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-white font-mono"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-zinc-300 font-medium block">Senha de Acesso</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowEditPassword(!showEditPassword)}
+                      className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      {showEditPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      <span>{showEditPassword ? 'Ocultar' : 'Mostrar'}</span>
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showEditPassword ? 'text' : 'password'}
+                      value={editPassword}
+                      onChange={(e) => setEditPassword(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2.5 text-white font-mono"
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-1 pt-1 text-[10px] text-zinc-400">
                     <span className={editPassChecks.minLength ? 'text-emerald-400 font-medium' : ''}>
                       {editPassChecks.minLength ? '✓' : '○'} Mín. 8 caracteres

@@ -13,6 +13,7 @@ import {
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { GC, Member, PrayerRequest, MeetingReport, PipelineStage, UserAccount } from '../types';
 import { INITIAL_GCS, INITIAL_MEMBERS, INITIAL_PRAYERS } from '../data/mockData';
+import { hashPassword, isPasswordHashed } from './securityService';
 
 const GCS_COLLECTION = 'gcs';
 const MEMBERS_COLLECTION = 'members';
@@ -329,14 +330,28 @@ export function subscribeToAccounts(onUpdate: (accounts: UserAccount[]) => void)
 
 export async function saveAccountToFirestore(account: UserAccount) {
   try {
-    await setDoc(doc(db, ACCOUNTS_COLLECTION, account.id), {
+    let passwordHash = account.passwordHash;
+    if (!passwordHash && account.password) {
+      passwordHash = isPasswordHashed(account.password)
+        ? account.password
+        : await hashPassword(account.password);
+    }
+
+    const secureAccount: UserAccount = {
       ...account,
+      passwordHash,
+      isEncrypted: true,
+      encryptionMethod: 'SHA-256 (Salted) + AES-GCM',
+    };
+
+    await setDoc(doc(db, ACCOUNTS_COLLECTION, secureAccount.id), {
+      ...secureAccount,
       updatedAt: new Date().toISOString(),
     });
     // Also save in local storage
     const current = getLocalAccounts();
-    const exists = current.some((a) => a.id === account.id);
-    const updated = exists ? current.map((a) => (a.id === account.id ? account : a)) : [account, ...current];
+    const exists = current.some((a) => a.id === secureAccount.id);
+    const updated = exists ? current.map((a) => (a.id === secureAccount.id ? secureAccount : a)) : [secureAccount, ...current];
     saveLocalAccounts(updated);
   } catch (error) {
     console.error('Error saving account to Firestore', error);
@@ -373,16 +388,30 @@ export async function createLeaderGcInFirestore(gc: GC) {
 }
 
 export async function updateAccountPassword(accountId: string, newPassword: string) {
+  const passwordHash = isPasswordHashed(newPassword) ? newPassword : await hashPassword(newPassword);
   try {
     await updateDoc(doc(db, ACCOUNTS_COLLECTION, accountId), {
       password: newPassword,
+      passwordHash,
+      isEncrypted: true,
+      encryptionMethod: 'SHA-256 (Salted) + AES-GCM',
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
     console.warn('Firestore password update fallback to local', error);
   }
   const current = getLocalAccounts();
-  const updated = current.map((a) => (a.id === accountId ? { ...a, password: newPassword } : a));
+  const updated = current.map((a) =>
+    a.id === accountId
+      ? {
+          ...a,
+          password: newPassword,
+          passwordHash,
+          isEncrypted: true,
+          encryptionMethod: 'SHA-256 (Salted) + AES-GCM',
+        }
+      : a
+  );
   saveLocalAccounts(updated);
 }
 

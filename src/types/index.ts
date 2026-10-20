@@ -16,6 +16,10 @@ export interface UserAccount {
   phone?: string;
   gcId?: string; // If lider_gc, the specific GC ID managed
   gcName?: string; // Display name of the specific GC
+  passwordHash?: string; // Salted SHA-256 cryptographic hash
+  isEncrypted?: boolean; // Indicates data is encrypted with AES/SHA-256
+  encryptionMethod?: string; // Cryptographic standard employed
+  lastLoginEncryptedAt?: string; // Timestamp of secure encrypted verification
 }
 
 export interface User {

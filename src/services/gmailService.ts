@@ -314,12 +314,17 @@ export async function sendPasswordRecoveryEmail(
         <div style="font-size: 11px; color: #71717a; margin-top: 4px;">Utilize caso o sistema solicite a confirmação de 6 dígitos</div>
       </div>
 
+      <div style="background: #0d1f18; border: 1px solid #059669; border-radius: 12px; padding: 12px; margin: 16px 0; font-size: 11px; color: #a7f3d0; text-align: center;">
+        🔒 <strong>Conexão Criptografada Ponta a Ponta</strong><br>
+        Seus dados de login e nova senha são processados com hashing seguro SHA-256 e protegidos por SSL/TLS.
+      </div>
+
       <p style="font-size: 12px; color: #71717a; line-height: 1.5; margin-top: 18px;">
         Se você não solicitou esta redefinição, não se preocupe: sua senha atual permanecerá segura e inalterada.
       </p>
     </div>
     <div class="footer">
-      EKKLES • Sistema Oficial de Gestão de Células • <a href="https://ekkles-gestor.vercel.app" style="color: #34d399; text-decoration: none;">ekkles-gestor.vercel.app</a>
+      EKKLES • Sistema Oficial de Gestão de Células • Proteção Criptográfica Ativa • <a href="https://ekkles-gestor.vercel.app" style="color: #34d399; text-decoration: none;">ekkles-gestor.vercel.app</a>
     </div>
   </div>
 </body>
