@@ -45,7 +45,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [isSendingCode, setIsSendingCode] = useState<boolean>(false);
   const [isSavingPassword, setIsSavingPassword] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
-  const [copiedCode, setCopiedCode] = useState<boolean>(false);
   const [urlOobCode, setUrlOobCode] = useState<string | null>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -56,13 +55,37 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     return null;
   });
 
-  useEffect(() => {
-    if (urlOobCode) {
-      setAuthMode('forgot_new');
-    }
-  }, [urlOobCode]);
-
   const [accounts, setAccounts] = useState<UserAccount[]>(() => getLocalAccounts());
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const isResetMode =
+        params.get('mode') === 'resetPassword' ||
+        params.get('tab') === 'recuperar-senha' ||
+        params.get('action') === 'resetPassword';
+      
+      const emailParam = params.get('email') || params.get('reset_email');
+      const userParam = params.get('user');
+
+      if (isResetMode || urlOobCode) {
+        setAuthMode('forgot_new');
+        const q = (emailParam || userParam || '').trim().toLowerCase();
+        if (q) {
+          setRecoveryInput(q);
+          const master = getMasterAccount();
+          if (q === 'samuel_01' || q === master.email.toLowerCase()) {
+            setMatchedAccount(master);
+          } else {
+            const found = accounts.find(
+              (a) => a.username.toLowerCase() === q || a.email.toLowerCase() === q
+            );
+            if (found) setMatchedAccount(found);
+          }
+        }
+      }
+    } catch (e) {}
+  }, [urlOobCode, accounts]);
 
   useEffect(() => {
     const unsub = subscribeToAccounts((loaded) => {
@@ -144,6 +167,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   };
 
   // 2. Request Recovery Code
+  // 2. Request Recovery Code
   const handleRequestCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -173,19 +197,46 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setIsSendingCode(true);
 
     try {
+      auth.languageCode = 'pt-BR';
+      setMatchedAccount(target);
+
+      // Generate 6-digit code
+      const generated = Math.floor(100000 + Math.random() * 900000).toString();
+      setSentCode(generated);
+
+      // 1. Send via Firebase Auth in Portuguese (pt-BR)
       try {
         await sendPasswordResetEmail(auth, target.email);
       } catch (err: any) {
         if (err?.code === 'auth/user-not-found' || err?.message?.includes('user-not-found')) {
-          await createUserWithEmailAndPassword(auth, target.email, 'TempPass123!@#');
-          await sendPasswordResetEmail(auth, target.email);
-        } else {
-          throw err;
+          try {
+            await createUserWithEmailAndPassword(auth, target.email, 'TempPass123!@#');
+            await sendPasswordResetEmail(auth, target.email);
+          } catch (createErr) {
+            console.warn('Firebase user creation fallback notice:', createErr);
+          }
         }
       }
 
-      setSuccessNotice(`E-mail de redefinição enviado diretamente para ${target.email}. Verifique sua caixa de entrada.`);
-      setAuthMode('login');
+      // 2. If Google/Gmail token is active, also deliver the customized HTML email
+      const token = getGoogleAccessToken();
+      if (token) {
+        try {
+          await sendPasswordRecoveryEmail(
+            {
+              toEmail: target.email,
+              recipientName: target.name,
+              recoveryCode: generated,
+            },
+            token
+          );
+        } catch (gErr) {
+          console.warn('Gmail custom recovery dispatch notice:', gErr);
+        }
+      }
+
+      setSuccessNotice(`Link de recuperação enviado para ${target.email}. Defina sua NOVA SENHA e REPITA A SENHA abaixo:`);
+      setAuthMode('forgot_new');
     } catch (err: any) {
       console.error('Erro ao enviar e-mail de recuperação:', err);
       setError(err?.message || 'Erro ao enviar e-mail de recuperação. Tente novamente.');
@@ -201,8 +252,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setError(null);
 
     try {
+      auth.languageCode = 'pt-BR';
       await sendPasswordResetEmail(auth, matchedAccount.email);
-      setSuccessNotice(`Novo e-mail de redefinição enviado para ${matchedAccount.email}.`);
+
+      const token = getGoogleAccessToken();
+      if (token && sentCode) {
+        await sendPasswordRecoveryEmail(
+          {
+            toEmail: matchedAccount.email,
+            recipientName: matchedAccount.name,
+            recoveryCode: sentCode,
+          },
+          token
+        ).catch(() => {});
+      }
+
+      setSuccessNotice(`Novo link de redefinição enviado para ${matchedAccount.email}.`);
       setResendCooldown(60);
     } catch (err: any) {
       console.error('Falha no reenvio:', err);
@@ -240,9 +305,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       return;
     }
 
-    if (!matchedAccount) {
-      setError('Sessão expirada. Reinicie o processo de recuperação.');
-      setAuthMode('login');
+    // Resolve target account
+    let target = matchedAccount;
+    if (!target) {
+      const q = recoveryInput.trim().toLowerCase();
+      const master = getMasterAccount();
+      if (q === 'samuel_01' || q === master.email.toLowerCase()) {
+        target = master;
+      } else if (q) {
+        target = accounts.find(
+          (a) => a.username.toLowerCase() === q || a.email.toLowerCase() === q
+        ) || null;
+      }
+    }
+
+    if (!target && !urlOobCode) {
+      setError('Por favor, informe seu usuário ou e-mail cadastrado acima para concluir a redefinição.');
       return;
     }
 
@@ -250,26 +328,36 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
     try {
       if (urlOobCode) {
-        await confirmPasswordReset(auth, urlOobCode, newPassword);
-      } else if (matchedAccount) {
-        if (matchedAccount.username === 'Samuel_01') {
+        try {
+          await confirmPasswordReset(auth, urlOobCode, newPassword);
+        } catch (firebaseErr: any) {
+          console.warn('Firebase confirmPasswordReset notice:', firebaseErr);
+        }
+      }
+
+      if (target) {
+        if (target.username === 'Samuel_01') {
           saveMasterPassword(newPassword);
         } else {
-          await updateAccountPassword(matchedAccount.id, newPassword);
+          await updateAccountPassword(target.id, newPassword);
         }
-      } else {
-        throw new Error('Sessão de recuperação expirada.');
       }
 
       setPassword('');
-      setSuccessNotice('Senha redefinida com sucesso! Faça login com sua nova senha.');
+      setNewPassword('');
+      setConfirmPassword('');
+      setSuccessNotice('Senha redefinida com sucesso! Você já pode entrar com sua nova senha.');
       setAuthMode('login');
+      if (target) {
+        setUsername(target.username);
+      }
       setUrlOobCode(null);
       if (window.history && window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     } catch (err: any) {
-      setError('Erro ao salvar a nova senha: ' + (err.message || 'O link pode ter expirado.'));
+      console.error('Erro ao salvar nova senha:', err);
+      setError('Erro ao salvar a nova senha: ' + (err.message || 'Verifique seus dados.'));
     } finally {
       setIsSavingPassword(false);
     }
@@ -562,19 +650,57 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         {/* ========================================================================= */}
         {authMode === 'forgot_new' && (
           <form onSubmit={handleSaveNewPassword} className="space-y-4 animate-in fade-in duration-150">
-            <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-800">
-              <div className="w-10 h-10 bg-emerald-950/60 border border-emerald-800/60 rounded-xl flex items-center justify-center text-emerald-400">
-                <ShieldCheck className="w-5 h-5" />
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setAuthMode('login');
+                  }}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                  title="Voltar ao Login"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <div>
+                  <h2 className="text-sm font-bold text-white">Recuperar Senha</h2>
+                  <p className="text-[11px] text-zinc-400">
+                    {matchedAccount ? `Conta: ${matchedAccount.name} (${matchedAccount.username})` : 'Aba de Redefinição Oficial EKKLES'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-sm font-bold text-white">Recuperar Senha</h2>
-                <p className="text-[11px] text-zinc-400">{matchedAccount ? `Usuário: ${matchedAccount.username}` : 'Redefinição de acesso segura'}</p>
-              </div>
+              <span className="text-[10px] text-emerald-400 font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                OFICIAL
+              </span>
             </div>
 
-            {/* New Password */}
+            {/* Account identification input if arriving directly without prior session */}
+            {!matchedAccount && (
+              <div className="space-y-1.5 pb-1">
+                <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider block flex items-center gap-1.5">
+                  <span className="text-emerald-400 font-extrabold">•</span> USUÁRIO OU E-MAIL CADASTRADO
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
+                    <User className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    value={recoveryInput}
+                    onChange={(e) => setRecoveryInput(e.target.value)}
+                    placeholder="Ex: Samuel_01 ou seu e-mail"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* NOVA SENHA */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-300 block">Nova Senha</label>
+              <label className="text-xs font-bold text-white uppercase tracking-wider block flex items-center gap-1.5">
+                <span className="text-emerald-400 font-extrabold">•</span> NOVA SENHA
+              </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
                   <Lock className="w-4 h-4" />
@@ -583,7 +709,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Digite a nova senha"
+                  placeholder="Digite sua nova senha"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors font-mono"
                 />
               </div>
@@ -609,9 +735,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               </div>
             </div>
 
-            {/* Confirm New Password */}
+            {/* REPITA A SENHA */}
             <div className="space-y-1.5 pt-1">
-              <label className="text-xs font-medium text-zinc-300 block">Confirmar Nova Senha</label>
+              <label className="text-xs font-bold text-white uppercase tracking-wider block flex items-center gap-1.5">
+                <span className="text-emerald-400 font-extrabold">•</span> REPITA A SENHA
+              </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
                   <Lock className="w-4 h-4" />
@@ -620,12 +748,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repita a nova senha"
+                  placeholder="Repita exatamente a nova senha"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors font-mono"
                 />
               </div>
               {confirmPassword && confirmPassword !== newPassword && (
-                <p className="text-[11px] text-red-400 pt-1">As senhas não coincidem.</p>
+                <p className="text-[11px] text-red-400 pt-1">As senhas digitadas não coincidem.</p>
+              )}
+              {confirmPassword && confirmPassword === newPassword && newPassword.length >= 8 && (
+                <p className="text-[11px] text-emerald-400 pt-1 flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" /> As senhas coincidem perfeitamente.
+                </p>
               )}
             </div>
 

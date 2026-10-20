@@ -11,6 +11,7 @@ interface PastoralCareProps {
 export const PastoralCare: React.FC<PastoralCareProps> = ({ members, onMarkContacted, accountType = 'pastor' }) => {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [customMessage, setCustomMessage] = useState<string>('');
 
   // Filter members with consecutive absences >= 1, sorted by absences descending
   const urgentMembers = members
@@ -52,7 +53,12 @@ export const PastoralCare: React.FC<PastoralCareProps> = ({ members, onMarkConta
           return (
             <div
               key={member.id}
-              onClick={() => setSelectedMember(member)}
+              onClick={() => {
+                setSelectedMember(member);
+                setCustomMessage(
+                  `Graça e paz, ${member.name}! Aqui é da liderança do ${member.gcName}. Sentimos muito a sua falta nos nossos últimos encontros de GC! Gostaríamos de saber como você está e se podemos orar por algo específico em sua vida esta semana. Um abraço fraterno!`
+                );
+              }}
               className="p-3 rounded-xl bg-[#27272A]/40 hover:bg-[#27272A] border border-[#27272A] hover:border-[#3F3F46] transition-all cursor-pointer flex items-center justify-between group"
             >
               <div className="space-y-0.5">
@@ -154,13 +160,65 @@ export const PastoralCare: React.FC<PastoralCareProps> = ({ members, onMarkConta
               )}
             </div>
 
+            {/* Personalized Message Presets & Editor */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-white uppercase tracking-wider">
+                  Personalizar Mensagem no WhatsApp:
+                </span>
+                <span className="text-[10px] text-emerald-400 font-mono">Personalizado</span>
+              </div>
+
+              {/* Template Chips */}
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  {
+                    id: 'falta',
+                    label: '❤️ Sentimos Falta',
+                    text: `Graça e paz, ${selectedMember.name}! Aqui é da liderança do ${selectedMember.gcName}. Sentimos muito a sua falta nos nossos últimos encontros de GC! Gostaríamos de saber como você está e se podemos orar por algo específico em sua vida esta semana. Um abraço fraterno!`
+                  },
+                  {
+                    id: 'oracao',
+                    label: '🙏 Apoio & Oração',
+                    text: `Olá, ${selectedMember.name}! Passando para dizer que estamos intercedendo por você e sua família. Se estiver passando por alguma dificuldade ou precisar de apoio espiritual, conte sempre com a liderança do ${selectedMember.gcName}!`
+                  },
+                  {
+                    id: 'convite',
+                    label: '✨ Convite Especial',
+                    text: `Paz do Senhor, ${selectedMember.name}! Nosso próximo encontro do ${selectedMember.gcName} terá uma palavra e comunhão muito especiais. A sua presença é fundamental para nós. Esperamos você de braços abertos!`
+                  }
+                ].map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => setCustomMessage(tpl.text)}
+                    className="p-1.5 rounded-lg text-[10px] font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700/60 transition-colors text-center"
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                rows={3}
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                placeholder="Edite a mensagem personalizada antes de enviar..."
+              />
+            </div>
+
             <div className="flex flex-col gap-2 pt-2">
               <button
-                onClick={() => handleOpenWhatsApp(selectedMember)}
+                onClick={() => {
+                  const rawNumber = selectedMember.phone.replace(/\D/g, '');
+                  const encoded = encodeURIComponent(customMessage);
+                  window.open(`https://wa.me/${rawNumber}?text=${encoded}`, '_blank');
+                }}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>Conversar no WhatsApp com Mensagem Pastoral</span>
+                <span>Enviar Mensagem Personalizada no WhatsApp</span>
               </button>
 
               <button

@@ -54,6 +54,12 @@ export const EmailNoticeModal: React.FC<EmailNoticeModalProps> = ({
   const [customTestEmail, setCustomTestEmail] = useState<string>('samuellsilvva02@gmail.com');
   const [includeCustomEmail, setIncludeCustomEmail] = useState(true);
 
+  // Message personalization states
+  const [noticeCategory, setNoticeCategory] = useState<string>('Convocação Semanal');
+  const [customNote, setCustomNote] = useState<string>(
+    'Que a graça e a paz do Senhor estejam com você! Nesta semana teremos um momento muito especial de louvor, palavra e comunhão fraterna. Venha com o coração aberto!'
+  );
+
   // Auth & status
   const [googleUser, setGoogleUser] = useState(auth.currentUser);
   const [accessToken, setAccessToken] = useState<string | null>(getGoogleAccessToken());
@@ -146,6 +152,10 @@ export const EmailNoticeModal: React.FC<EmailNoticeModalProps> = ({
             address: gc.address,
             confirmationCode,
             leaderName,
+            noticeCategory,
+            customNote: customNote.trim() || undefined,
+            theme: gc.theme,
+            verse: gc.verse,
             scales: scale
               ? {
                   louvor: scale.louvor,
@@ -320,6 +330,65 @@ export const EmailNoticeModal: React.FC<EmailNoticeModalProps> = ({
             <div className="flex items-center gap-2 text-zinc-300 col-span-1 sm:col-span-2">
               <MapPin className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
               <span className="truncate">Local: <strong className="text-white">{gc.location}</strong> ({gc.address})</span>
+            </div>
+          </div>
+
+          {/* Personalized Message & Notice Type Section */}
+          <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3.5">
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-white flex items-center gap-2 text-xs">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span>Personalizar Mensagem aos Membros</span>
+              </label>
+              <span className="text-[10px] text-emerald-400 font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                100% Personalizado
+              </span>
+            </div>
+
+            {/* Notice Category Quick Presets */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] text-zinc-400 font-medium block">Tipo de Aviso / Convocação:</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {[
+                  { id: 'Convocação Semanal', label: '📢 Convocação', note: 'Que a graça e a paz do Senhor estejam com você! Nesta semana teremos um momento muito especial de louvor, palavra e comunhão fraterna. Venha com o coração aberto!' },
+                  { id: 'Lembrete de Escala', label: '📋 Escalas & Tarefas', note: 'Olá, amado(a)! Passando para lembrar com carinho da nossa reunião e confirmar sua escala na equipe. Sua dedicação faz toda a diferença!' },
+                  { id: 'Noite de Comunhão', label: '☕ Noite de Comunhão', note: 'Paz do Senhor! Nosso encontro desta semana terá um momento maravilhoso de partilha e gratidão a Deus. Venha celebrar conosco e traga um convidado!' },
+                  { id: 'Cuidado & Oração', label: '🙏 Cuidado Pastoral', note: 'Querido(a) irmão(ã), sua vida é preciosa para o nosso grupo! Estaremos reunidos em amor para interceder por sua família e seus sonhos.' },
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      setNoticeCategory(cat.id);
+                      setCustomNote(cat.note);
+                    }}
+                    className={`px-2.5 py-2 rounded-xl text-[11px] font-medium text-left transition-all border ${
+                      noticeCategory === cat.id
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 shadow-sm'
+                        : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Note Textarea */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-zinc-400 font-medium">
+                  Palavra da Liderança (destacada no corpo do e-mail):
+                </span>
+                <span className="text-[10px] text-zinc-500">{customNote.length} caracteres</span>
+              </div>
+              <textarea
+                rows={3}
+                value={customNote}
+                onChange={(e) => setCustomNote(e.target.value)}
+                placeholder="Escreva uma mensagem calorosa, personalizada ou um versículo para abençoar os membros..."
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
             </div>
           </div>
 
