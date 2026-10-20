@@ -88,7 +88,8 @@ export function subscribeToGCs(onUpdate: (gcs: GC[]) => void): () => void {
       onUpdate(data);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn('GCs subscription offline fallback:', error?.message);
+      onUpdate(INITIAL_GCS);
     }
   );
 }
@@ -111,7 +112,8 @@ export function subscribeToMembers(onUpdate: (members: Member[]) => void): () =>
       onUpdate(data);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn('Members subscription offline fallback:', error?.message);
+      onUpdate(INITIAL_MEMBERS);
     }
   );
 }
@@ -134,7 +136,8 @@ export function subscribeToPrayers(onUpdate: (prayers: PrayerRequest[]) => void)
       onUpdate(data);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn('Prayers subscription offline fallback:', error?.message);
+      onUpdate(INITIAL_PRAYERS);
     }
   );
 }
